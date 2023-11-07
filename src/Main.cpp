@@ -20,6 +20,20 @@ json decode_bencoded_value(const std::string& encoded_value) {
         } else {
             throw std::runtime_error("Invalid encoded value: " + encoded_value);
         }
+    } else if (encoded_value[0] == 'i') {
+        size_t suffix_index = encoded_value.find('e');
+        if (suffix_index != std::string::npos) {
+            std::string pending_value = encoded_value.substr(1, suffix_index);
+            int offset = pending_value[0] == '-';
+            try {
+                int64_t value = std::atoll(pending_value.substr(offset,suffix_index).c_str());
+                return offset == 1 ? json(-value) : json(value);
+            } catch (std::exception& e) {
+                throw std::runtime_error("Invalid encoded value: unexpected sign" + encoded_value);
+            }
+        } else {
+            throw std::runtime_error("Invalid encoded value: wrong suffix" + encoded_value);
+        }
     } else {
         throw std::runtime_error("Unhandled encoded value: " + encoded_value);
     }
