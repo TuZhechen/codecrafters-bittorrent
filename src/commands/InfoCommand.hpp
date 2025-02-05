@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Command.hpp"
-#include "../bencode/BencodeParser.hpp"
+#include "../bencode/BencodeDecoder.hpp"
+#include "../bencode/BencodeEncoder.hpp"
 
 class InfoCommand : public Command {
 public:

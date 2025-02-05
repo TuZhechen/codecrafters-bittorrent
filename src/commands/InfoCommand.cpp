@@ -1,3 +1,4 @@
+#include "../utils/SHA1.hpp"
 #include "InfoCommand.hpp"
 #include <iostream>
 #include <sstream>
@@ -7,11 +8,10 @@ void InfoCommand::execute(const std::string& input) {
     try {
         std::string torrentContent = readTorrentFile(input);
         
-        BencodeParser parser;
-        std::string content = torrentContent;
-        nlohmann::json torrentData = parser.decode(content);
+        BencodeDecoder decoder;
+        std::string content = torrentContent;   
+        nlohmann::json torrentData = decoder.decode(content);
         
-
         displayTorrentInfo(torrentData);
     } catch (const std::exception& e) {
         throw std::runtime_error("Failed to process torrent file: " + std::string(e.what()));
@@ -45,4 +45,11 @@ void InfoCommand::displayTorrentInfo(const nlohmann::json& torrentData) {
         throw std::runtime_error("Invalid torrent info: missing or invalid file length");
     }
     std::cout << "Length: " << info["length"].get<int64_t>() << std::endl;
+
+    // Calculate and display info hash
+    BencodeEncoder encoder;
+    std::string encoded_info = encoder.encode(info);
+    
+    auto hash = SHA1::calculate(encoded_info);
+    std::cout << "Info Hash: " << SHA1::toHex(hash) << std::endl;
 }
