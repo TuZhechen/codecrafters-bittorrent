@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <map>
 #include <vector>
 #include <cctype>
 #include <cstdlib>
@@ -60,6 +61,29 @@ json decode_bencoded_value(std::string& encoded_value) {
         
         encoded_value = encoded_value.substr(1); // Remove 'e' suffix
         return json(list);
+
+    } else if (encoded_value[0] == 'd') {
+        // Parse dictionary (e.g. "d3:keyi123e4:key2i456ee" -> {"key": 123, "key2": 456})
+        std::map<json, json> dict;
+        encoded_value = encoded_value.substr(1); // Remove 'd' prefix
+
+        // Keep parsing key-value pairs until we hit the end marker 'e'
+        while (!encoded_value.empty() && encoded_value[0] != 'e') {
+            try {
+                json key = decode_bencoded_value(encoded_value);
+                json value = decode_bencoded_value(encoded_value);
+                dict[key] = value;
+            } catch (std::exception& e) {
+                throw std::runtime_error("Invalid dictionary element: " + std::string(e.what()));
+            }
+        }
+        
+        if (encoded_value.empty() || encoded_value[0] != 'e') {
+            throw std::runtime_error("Invalid dictionary: missing end marker");
+        }
+        
+        encoded_value = encoded_value.substr(1); // Remove 'e' suffix
+        return json(dict);
 
     } else {
         throw std::runtime_error("Unhandled encoded value: " + encoded_value);
