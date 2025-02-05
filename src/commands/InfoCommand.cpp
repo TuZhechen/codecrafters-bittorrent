@@ -52,4 +52,22 @@ void InfoCommand::displayTorrentInfo(const nlohmann::json& torrentData) {
     
     auto hash = SHA1::calculate(encoded_info);
     std::cout << "Info Hash: " << SHA1::toHex(hash) << std::endl;
+
+    if (!info.contains("piece length") || !info["piece length"].is_number()) {
+        throw std::runtime_error("Invalid torrent info: missing or invalid piece length");
+    }
+    std::cout << "Piece Length: " << info["piece length"].get<int64_t>() << std::endl;
+
+    if (!info.contains("pieces") || !info["pieces"].is_string()) {
+        throw std::runtime_error("Invalid torrent info: missing or invalid pieces SHA1 hashes");
+    }
+    std::string pieces = info["pieces"].get<std::string>();
+    
+    std::cout << "Piece Hashes:" << std::endl;
+    for (size_t i = 0; i < pieces.length(); i += 20) {
+        std::array<unsigned char, 20> piece_hash;
+        std::copy(pieces.begin() + i, pieces.begin() + i + 20, piece_hash.begin());
+        std::cout << SHA1::toHex(piece_hash) << std::endl;
+    }
+        
 }
