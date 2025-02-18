@@ -4,9 +4,9 @@
 #include <sstream>
 #include <fstream>
 
-void InfoCommand::execute(const std::string& input) {
+void InfoCommand::execute(const std::vector<std::string>& args) {
     try {
-        std::string torrentContent = readTorrentFile(input);
+        std::string torrentContent = readTorrentFile(args[0]);
         
         BencodeDecoder decoder;
         std::string content = torrentContent;   

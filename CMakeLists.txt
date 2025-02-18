@@ -23,6 +23,7 @@ set(SOURCE_FILES
     src/commands/DecodeCommand.cpp
     src/commands/InfoCommand.cpp
     src/commands/PeersCommand.cpp
+    src/commands/HandshakeCommand.cpp
     src/manager/CommandManager.cpp
     src/bencode/BencodeDecoder.cpp
     src/bencode/BencodeEncoder.cpp
@@ -35,6 +36,7 @@ set(HEADER_FILES
     src/commands/DecodeCommand.hpp
     src/commands/InfoCommand.hpp
     src/commands/PeersCommand.hpp
+    src/commands/HandshakeCommand.hpp
     src/manager/CommandManager.hpp
     src/bencode/BencodeDecoder.hpp
     src/bencode/BencodeEncoder.hpp

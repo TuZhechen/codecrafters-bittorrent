@@ -8,7 +8,7 @@
 
 class PeersCommand : public Command {
 public:
-    void execute(const std::string& input) override;
+    void execute(const std::vector<std::string>& args) override;
 
 private:
     std::string readTorrentFile(const std::string& filepath);

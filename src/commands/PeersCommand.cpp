@@ -11,9 +11,9 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
     return size * nmemb;
 }
 
-void PeersCommand::execute(const std::string& input) {
+void PeersCommand::execute(const std::vector<std::string>& args) {
     try {
-        std::string torrentContent = readTorrentFile(input);
+        std::string torrentContent = readTorrentFile(args[0]);
         
         BencodeDecoder decoder;
         std::string content = torrentContent;

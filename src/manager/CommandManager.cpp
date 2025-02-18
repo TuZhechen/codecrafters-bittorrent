@@ -5,11 +5,11 @@ void CommandManager::registerCommand(const std::string& name, std::unique_ptr<Co
     commands[name] = std::move(command);
 }
 
-void CommandManager::executeCommand(const std::string& name, const std::string& input) {
+void CommandManager::executeCommand(const std::string& name, const std::vector<std::string>& args) {
     auto it = commands.find(name);
     if (it != commands.end()) {
         try {
-            it->second->execute(input);
+            it->second->execute(args);
         } catch (const std::exception& e) {
             std::cerr << "Error executing command: " << e.what() << std::endl;
         }
