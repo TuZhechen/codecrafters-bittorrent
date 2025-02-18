@@ -4,14 +4,14 @@
 #include "../bencode/BencodeDecoder.hpp"
 #include "../bencode/BencodeEncoder.hpp"
 #include "../utils/SHA1.hpp"
+#include "../utils/TorrentUtils.hpp"
 #include <string>
 
 class HandshakeCommand : public Command {
 public:
-    void execute(const std::vector<std::string>& args) override;
+    void execute(const CommandOptions& options) override;
 
 private:
-    std::string readTorrentFile(const std::string& filepath);
-    void performHandshake(const std::string& peer_addr, const std::string& info_hash);
+    int sock = -1;
     std::pair<std::string, int> parsePeerAddress(const std::string& peer_addr);
 }; 

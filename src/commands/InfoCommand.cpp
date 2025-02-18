@@ -4,9 +4,12 @@
 #include <sstream>
 #include <fstream>
 
-void InfoCommand::execute(const std::vector<std::string>& args) {
+void InfoCommand::execute(const CommandOptions& options) {
     try {
-        std::string torrentContent = readTorrentFile(args[0]);
+        if (options.args.empty()) {
+            throw std::runtime_error("No torrent file provided");
+        }
+        std::string torrentContent = TorrentUtils::readTorrentFile(options.args[0]);
         
         BencodeDecoder decoder;
         std::string content = torrentContent;   
@@ -16,18 +19,6 @@ void InfoCommand::execute(const std::vector<std::string>& args) {
     } catch (const std::exception& e) {
         throw std::runtime_error("Failed to process torrent file: " + std::string(e.what()));
     }
-}
-
-std::string InfoCommand::readTorrentFile(const std::string& filepath) {
-    std::ifstream file(filepath, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Cannot open torrent file: " + filepath);
-    }
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
-
 }
 
 void InfoCommand::displayTorrentInfo(const nlohmann::json& torrentData) {

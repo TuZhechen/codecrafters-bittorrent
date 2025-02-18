@@ -5,7 +5,7 @@
 
 class DecodeCommand : public Command {
 public:
-    void execute(const std::vector<std::string>& args) override;
+    void execute(const CommandOptions& options) override;
 private:
     BencodeDecoder decoder;
 }; 

@@ -24,10 +24,13 @@ set(SOURCE_FILES
     src/commands/InfoCommand.cpp
     src/commands/PeersCommand.cpp
     src/commands/HandshakeCommand.cpp
+    src/commands/DownloadPieceCommand.cpp
     src/manager/CommandManager.cpp
     src/bencode/BencodeDecoder.cpp
     src/bencode/BencodeEncoder.cpp
     src/utils/SHA1.cpp
+    src/utils/TorrentUtils.cpp
+    src/protocol/PeerMessage.cpp
 )
 
 # Collect all header files (optional but good for IDE integration)
@@ -37,12 +40,16 @@ set(HEADER_FILES
     src/commands/InfoCommand.hpp
     src/commands/PeersCommand.hpp
     src/commands/HandshakeCommand.hpp
+    src/commands/DownloadPieceCommand.hpp
     src/manager/CommandManager.hpp
     src/bencode/BencodeDecoder.hpp
     src/bencode/BencodeEncoder.hpp
     src/bencode/Bencode.hpp
     src/utils/SHA1.hpp
+    src/utils/TorrentUtils.hpp
     src/lib/nlohmann/json.hpp
+    src/protocol/PeerMessage.hpp
+    src/protocol/PeerMessageType.hpp
 )
 
 # Create executable
@@ -56,10 +63,10 @@ target_link_libraries(bittorrent
     OpenSSL::Crypto  # We only need the crypto part of OpenSSL for SHA1
     CURL::libcurl     # Link against the CURL library
 )
-
 # Add compiler warnings
 if(MSVC)
     target_compile_options(bittorrent PRIVATE /W4)
 else()
     target_compile_options(bittorrent PRIVATE -Wall -Wextra)
 endif()
+
