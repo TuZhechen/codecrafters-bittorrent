@@ -1,5 +1,6 @@
 #include "commands/DecodeCommand.hpp"
 #include "commands/InfoCommand.hpp"
+#include "commands/PeersCommand.hpp"
 #include "manager/CommandManager.hpp"
 #include <iostream>
 
@@ -15,6 +16,7 @@ int main(int argc, char* argv[]) {
     CommandManager manager;
     manager.registerCommand("decode", std::make_unique<DecodeCommand>());
     manager.registerCommand("info", std::make_unique<InfoCommand>());
+    manager.registerCommand("peers", std::make_unique<PeersCommand>());
 
     manager.executeCommand(command, input);
 
