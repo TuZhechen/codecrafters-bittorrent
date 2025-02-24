@@ -3,6 +3,7 @@
 #include "commands/PeersCommand.hpp"
 #include "commands/HandshakeCommand.hpp"
 #include "commands/DownloadPieceCommand.hpp"
+#include "commands/DownloadCommand.hpp"
 #include "manager/CommandManager.hpp"
 #include <iostream>
 
@@ -39,6 +40,7 @@ int main(int argc, char* argv[]) {
     manager.registerCommand("peers", std::make_unique<PeersCommand>());
     manager.registerCommand("handshake", std::make_unique<HandshakeCommand>());
     manager.registerCommand("download_piece", std::make_unique<DownloadPieceCommand>());
+    manager.registerCommand("download", std::make_unique<DownloadCommand>());
 
     manager.executeCommand(command, options);
 
