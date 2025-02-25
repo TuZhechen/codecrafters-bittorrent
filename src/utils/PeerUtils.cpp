@@ -6,6 +6,31 @@
 #include <sys/socket.h>
 #include "../protocol/PeerMessage.hpp"
 
+std::pair<std::string, int> PeerUtils::parsePeerAddress(const std::string& peer_addr) {
+    size_t colon_pos = peer_addr.find(':');
+    if (colon_pos == std::string::npos) {
+        throw std::runtime_error("Invalid peer address format. Expected: <ip>:<port>");
+    }
+    
+    std::string ip = peer_addr.substr(0, colon_pos);
+    int port = std::stoi(peer_addr.substr(colon_pos + 1));
+    return {ip, port};
+}
+
+std::pair<std::string, int> PeerUtils::parsePeerAddress(const std::string& peers_data, int offset) {
+    unsigned char ip_bytes[4];
+    memcpy(ip_bytes, peers_data.c_str() + offset, 4);
+    uint16_t port = static_cast<unsigned char>(peers_data[offset + 4]) << 8 | 
+                   static_cast<unsigned char>(peers_data[offset + 5]);
+
+    std::string ip_str = std::to_string(ip_bytes[0]) + "." + 
+                        std::to_string(ip_bytes[1]) + "." + 
+                        std::to_string(ip_bytes[2]) + "." + 
+                        std::to_string(ip_bytes[3]);
+
+    return {ip_str, port};
+}
+
 void PeerUtils::receiveMessage(unsigned char* msg_length_buf, char& msg_type, std::vector<uint8_t>& payload) {
     if (recv(sock, msg_length_buf, 4, 0) != 4) {
         throw std::runtime_error("Failed to receive message");

@@ -4,11 +4,11 @@
 #include "../bencode/BencodeDecoder.hpp"
 #include "../bencode/BencodeEncoder.hpp"
 #include "../utils/SHA1.hpp"
-#include "../utils/TorrentUtils.hpp"
+#include "../utils/MagnetUtils.hpp"
 #include "../utils/PeerUtils.hpp"
 #include <string>
 
-class HandshakeCommand : public Command {
+class MagnetHandshakeCommand : public Command {
 public:
     void execute(const CommandOptions& options) override;
 

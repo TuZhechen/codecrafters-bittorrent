@@ -31,7 +31,7 @@ void HandshakeCommand::execute(const CommandOptions& options) {
         std::string info_hash(reinterpret_cast<char*>(hash.data()), 20);
 
         // Parse peer address and create socket
-        auto [ip, port] = parsePeerAddress(peer_addr);
+        auto [ip, port] = PeerUtils::parsePeerAddress(peer_addr);
         sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock < 0) {
             throw std::runtime_error("Failed to create socket");
@@ -58,15 +58,4 @@ void HandshakeCommand::execute(const CommandOptions& options) {
         }
         throw std::runtime_error("Handshake failed: " + std::string(e.what()));
     }
-}
-
-std::pair<std::string, int> HandshakeCommand::parsePeerAddress(const std::string& peer_addr) {
-    size_t colon_pos = peer_addr.find(':');
-    if (colon_pos == std::string::npos) {
-        throw std::runtime_error("Invalid peer address format. Expected: <ip>:<port>");
-    }
-    
-    std::string ip = peer_addr.substr(0, colon_pos);
-    int port = std::stoi(peer_addr.substr(colon_pos + 1));
-    return {ip, port};
 }

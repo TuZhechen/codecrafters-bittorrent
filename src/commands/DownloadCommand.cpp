@@ -67,15 +67,7 @@ void DownloadCommand::connectToPeers(const std::string& announce_url) {
 
     // Connect to peers
     for (size_t i = 0; i < peers_data.length(); i += 6) {
-        unsigned char ip_bytes[4];
-        memcpy(ip_bytes, peers_data.c_str() + i, 4);
-        uint16_t port = static_cast<unsigned char>(peers_data[i + 4]) << 8 | 
-                       static_cast<unsigned char>(peers_data[i + 5]);
-
-        std::string ip_str = std::to_string(ip_bytes[0]) + "." + 
-                            std::to_string(ip_bytes[1]) + "." + 
-                            std::to_string(ip_bytes[2]) + "." + 
-                            std::to_string(ip_bytes[3]);
+        auto [ip_str, port] = PeerUtils::parsePeerAddress(peers_data, i);
 
         auto peer = std::make_unique<PeerManager>(ip_str, port, info_hash);
         if (peer->connect()) {
