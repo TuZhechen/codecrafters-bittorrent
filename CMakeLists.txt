@@ -29,6 +29,7 @@ set(SOURCE_FILES
     src/commands/HandshakeCommand.cpp
     src/commands/DownloadPieceCommand.cpp
     src/commands/DownloadCommand.cpp
+    src/commands/MagnetParseCommand.cpp
     src/manager/CommandManager.cpp
     src/manager/PeerManager.cpp
     src/manager/PieceManager.cpp
@@ -37,6 +38,7 @@ set(SOURCE_FILES
     src/utils/SHA1.cpp
     src/utils/TorrentUtils.cpp
     src/utils/PeerUtils.cpp
+    src/utils/MagnetUtils.cpp
     src/protocol/PeerMessage.cpp
 )
 
@@ -49,6 +51,7 @@ set(HEADER_FILES
     src/commands/HandshakeCommand.hpp
     src/commands/DownloadPieceCommand.hpp
     src/commands/DownloadCommand.hpp
+    src/commands/MagnetParseCommand.hpp
     src/manager/CommandManager.hpp
     src/manager/PeerManager.hpp
     src/manager/PieceManager.hpp
@@ -58,6 +61,7 @@ set(HEADER_FILES
     src/utils/SHA1.hpp
     src/utils/TorrentUtils.hpp
     src/utils/PeerUtils.hpp
+    src/utils/MagnetUtils.hpp
     src/lib/nlohmann/json.hpp
     src/protocol/PeerMessage.hpp
     src/protocol/PeerMessageType.hpp
