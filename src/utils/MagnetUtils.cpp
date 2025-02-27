@@ -64,7 +64,7 @@ std::string MagnetUtils::urlEncode(const unsigned char* data, size_t len) {
 }
 
 void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
-    // Send handshake
+    // Prepare base handshake
     std::string protocol = "BitTorrent protocol";
     std::vector<uint8_t> handshake;
     handshake.reserve(68);  // Total handshake length
@@ -89,7 +89,7 @@ void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
         throw std::runtime_error("Failed to send handshake");
     }
     
-    // Receive handshake response
+    // Receive base handshake response
     std::vector<uint8_t> response(68);
     if (recv(sock, response.data(), response.size(), 0) != response.size()) {
         throw std::runtime_error("Failed to receive handshake");
@@ -105,6 +105,49 @@ void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
     }
     
     std::cout << "Peer ID: " << ss.str() << std::endl;
+
+    // Check extension bits
+    bool supports_extension = (response[25] & 0x10) != 0;
+    if (supports_extension) {
+        // Create the extension handshake payload
+        nlohmann::json payload;
+        payload["m"] = nlohmann::json::object();
+        payload["m"]["ut_metadata"] = 1;
+        payload["metadata_size"] = 0;
+        
+        // Bencode the payload
+        std::string payload_str = Bencode::encode(payload);
+        
+        // Calculate the message length (payload size + 2 bytes for message IDs)
+        uint32_t message_length = payload_str.size() + 2;
+        
+        // Construct the complete extension handshake message
+        std::vector<uint8_t> extension_handshake;
+        extension_handshake.reserve(6 + payload_str.size());
+        
+        // Add length prefix (4 bytes, big-endian)
+        extension_handshake.push_back((message_length >> 24) & 0xFF);
+        extension_handshake.push_back((message_length >> 16) & 0xFF);
+        extension_handshake.push_back((message_length >> 8) & 0xFF);
+        extension_handshake.push_back(message_length & 0xFF);
+        
+        // Add message ID (1 byte)
+        extension_handshake.push_back(20);  // 20 for extension protocol
+        
+        // Add extension message ID (1 byte)
+        extension_handshake.push_back(0);   // 0 for handshake
+        
+        // Add bencoded payload
+        extension_handshake.insert(extension_handshake.end(), 
+                                  payload_str.begin(), payload_str.end());
+        
+        // Send the extension handshake
+        if (send(sock, extension_handshake.data(), extension_handshake.size(), 0) != 
+                static_cast<ssize_t>(extension_handshake.size())) {
+            throw std::runtime_error("Failed to send extension handshake");
+        }
+        
+    }
 }
 
 std::string MagnetUtils::urlDecode(const std::string& encoded) {

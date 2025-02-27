@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Command.hpp"
-#include "../bencode/BencodeDecoder.hpp"
-#include "../bencode/BencodeEncoder.hpp"
+#include "../bencode/Bencode.hpp"
 #include "../utils/SHA1.hpp"
 #include "../utils/MagnetUtils.hpp"
 #include "../utils/PeerUtils.hpp"

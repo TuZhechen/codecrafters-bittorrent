@@ -38,6 +38,15 @@ int PieceManager::getNextPiece() {
     piece_cv.wait(lock, [this]() {
         return !pending_pieces.empty() || isDownloadComplete();
     });
+
+    if (isDownloadComplete()) {
+        piece_cv.notify_all();  // Wake up any remaining workers
+        return -1;
+    }
+
+    if (pending_pieces.empty()) {
+        return -1;
+    }
     
     // Get next piece if available
     int next_piece = pending_pieces.front();

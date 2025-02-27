@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "../bencode/Bencode.hpp"
 
 class MagnetUtils {
 public:

@@ -44,8 +44,7 @@ void MagnetHandshakeCommand::execute(const CommandOptions& options) {
         std::string trackerUrl = MagnetUtils::urlDecode(magnet_link.substr(trackerStart + 4));
         
         std::string trackerResponse = MagnetUtils::makeTrackerRequest(trackerUrl, binaryInfoHash);
-        BencodeDecoder decoder;
-        nlohmann::json resp_data = decoder.decode(trackerResponse);
+        nlohmann::json resp_data = Bencode::decode(trackerResponse);
         std::string peers_data = resp_data["peers"].get<std::string>();
         
         auto [ip, port] = PeerUtils::parsePeerAddress(peers_data, 0);
