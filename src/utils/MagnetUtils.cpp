@@ -106,6 +106,22 @@ void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
     
     std::cout << "Peer ID: " << ss.str() << std::endl;
 
+    // TBD: send the bitfield message
+
+    
+    // Receive the bitfield message
+    uint8_t bitfield_length_buf[4];
+    if (recv(sock, bitfield_length_buf, 4, 0) != 4) {
+        throw std::runtime_error("Failed to receive bitfield length");
+    }
+    uint32_t bitfield_length = (bitfield_length_buf[0] << 24) | (bitfield_length_buf[1] << 16) | 
+                             (bitfield_length_buf[2] << 8) | bitfield_length_buf[3];
+
+    std::vector<uint8_t> bitfield(bitfield_length);
+    if (recv(sock, bitfield.data(), bitfield_length, 0) != bitfield_length) {
+        throw std::runtime_error("Failed to receive bitfield");
+    }
+
     // Check extension bits
     bool supports_extension = (response[25] & 0x10) != 0;
     if (supports_extension) {
@@ -146,7 +162,39 @@ void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
                 static_cast<ssize_t>(extension_handshake.size())) {
             throw std::runtime_error("Failed to send extension handshake");
         }
-        
+
+        // Receive the extension handshake response
+        // First receive the message length (4 bytes)
+        uint8_t length_buf[4];
+        if (recv(sock, length_buf, 4, 0) != 4) {
+            throw std::runtime_error("Failed to receive extension handshake length");
+        }
+
+        uint32_t received_message_length = (length_buf[0] << 24) | (length_buf[1] << 16) | 
+                                 (length_buf[2] << 8) | length_buf[3];
+
+        // Receive message type (1 byte)
+        uint8_t message_type;
+        if (recv(sock, &message_type, 1, 0) != 1) {
+            throw std::runtime_error("Failed to receive extension message type");
+        }
+        // Receive extension message ID (1 byte)
+        uint8_t ext_message_id;
+        if (recv(sock, &ext_message_id, 1, 0) != 1) {
+            throw std::runtime_error("Failed to receive extension message ID");
+        }
+        // Receive payload (message_length - 2 bytes for the IDs)
+        std::vector<uint8_t> received_payload_bytes(received_message_length - 2);
+        if (recv(sock, received_payload_bytes.data(), received_payload_bytes.size(), 0) != received_payload_bytes.size()) {
+            throw std::runtime_error("Failed to receive extension handshake payload");
+        }
+
+        // Convert payload to string and decode
+        std::string received_payload_str(received_payload_bytes.begin(), received_payload_bytes.end());
+        nlohmann::json received_payload = Bencode::decode(received_payload_str);
+        if (received_payload.contains("m") && received_payload["m"].contains("ut_metadata")) {
+            std::cout << "Peer Metadata Extension ID: " << received_payload["m"]["ut_metadata"] << std::endl;
+        }
     }
 }
 
