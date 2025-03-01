@@ -1,6 +1,13 @@
 #pragma once
 #include <string>
 #include "../bencode/Bencode.hpp"
+#include <vector>
+
+// Add this struct to hold handshake results
+struct HandshakeResult {
+    int extension_id;
+    std::vector<uint8_t> bitfield;
+};
 
 class MagnetUtils {
 public:
@@ -10,7 +17,8 @@ public:
                                            const std::string& info_hash,
                                            int64_t length = 999);
     static size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp);
-    static int performHandshake(int sock, const std::string& info_hash, bool silent = false);
+    static nlohmann::json parseMagnetLink(const std::string& magnet_link);
+    static HandshakeResult performHandshake(int sock, const std::string& info_hash, bool silent = false);
     static void requestMetadata(int sock, int extension_id);
-    static void receiveMetadata(int sock, const std::string& info_hash);
+    static nlohmann::json receiveMetadata(int sock, const std::string& info_hash);
 }; 

@@ -11,6 +11,7 @@ public:
     ~PeerManager();
 
     bool connect();
+    bool magnetConnect(int sock, const std::vector<uint8_t>& bitfield);
     bool downloadPiece(int index, int length, std::vector<uint8_t>& data);
     bool hasPiece(int index) const;
     void disconnect();

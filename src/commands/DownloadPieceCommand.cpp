@@ -17,6 +17,9 @@ void DownloadPieceCommand::execute(const CommandOptions& options) {
         if (options.args.size() != 2) {
             throw std::runtime_error("Expected: <torrent_file> <piece_index>");
         }
+        if (!options.options.contains("-o")) {
+            throw std::runtime_error("Expected: -o <output_file>");
+        }
         
         std::string torrent_file = options.args[0];
         int piece_index = std::stoi(options.args[1]);

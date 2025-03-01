@@ -79,6 +79,42 @@ bool PeerManager::connect() {
     }
 }
 
+bool PeerManager::magnetConnect(int sock, const std::vector<uint8_t>& bitfield) {
+    try {
+        // Initialize PeerUtils
+        peer_utils = std::make_unique<PeerUtils>(sock);
+
+        if (!bitfield.empty()) {
+            processBitfield(bitfield);
+        } else {
+            piece_availability.clear();
+        }
+        // Receive and process bitfield
+        unsigned char msg_length_buf[4];
+        char msg_type;
+        std::vector<uint8_t> payload;
+
+        // Send interested message
+        peer_utils->sendMessage(PeerMessageType::INTERESTED, {});
+
+        // Wait for unchoke
+        peer_utils->receiveMessage(msg_length_buf, msg_type, payload);
+
+        if (msg_type != static_cast<char>(PeerMessageType::UNCHOKE)) {
+            disconnect();
+            return false;
+        }
+
+        return true;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Connection failed: " << e.what() << std::endl;
+        disconnect();
+        return false;
+    }
+
+}
+
 bool PeerManager::downloadPiece(int index, int length, std::vector<uint8_t>& data) {
     if (!peer_utils || !hasPiece(index)) {
         std::cout << "Peer " << getPeerInfo() << " can't download piece " 

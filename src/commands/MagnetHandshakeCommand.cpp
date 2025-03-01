@@ -15,33 +15,9 @@ void MagnetHandshakeCommand::execute(const CommandOptions& options) {
             throw std::runtime_error("Expected: <magnet_link>");
         }
         
-        std::string magnet_link = options.args[0];
-        if (magnet_link.empty()) {
-            throw std::runtime_error("Magnet link cannot be empty");
-        }
-        if (magnet_link.find("magnet:") == std::string::npos) {
-            throw std::runtime_error("Invalid magnet link: wrong header");
-        }
-        if (magnet_link.find("xt=") == std::string::npos) {
-            throw std::runtime_error("Invalid magnet link: missing xt= parameter");
-        }
-        int hashStart = magnet_link.find("urn:btih:");
-        if (hashStart == std::string::npos) {
-            throw std::runtime_error("Invalid magnet link: missing urn:btih:");
-        }
-        std::string infoHash = magnet_link.substr(hashStart + 9, 40);
-        std::string binaryInfoHash;
-        for (size_t i = 0; i < 40; i += 2) {
-            std::string hex_pair = infoHash.substr(i, 2);
-            char byte = static_cast<char>(std::stoi(hex_pair, nullptr, 16));
-            binaryInfoHash.push_back(byte);
-        }
-
-        int trackerStart = magnet_link.find("&tr=");
-        if (trackerStart == std::string::npos) {
-            throw std::runtime_error("A tracker url is required");
-        }
-        std::string trackerUrl = MagnetUtils::urlDecode(magnet_link.substr(trackerStart + 4));
+        nlohmann::json magnet_data = MagnetUtils::parseMagnetLink(options.args[0]);
+        std::string binaryInfoHash = magnet_data["binary_info_hash"];
+        std::string trackerUrl = magnet_data["tracker_url"];
         
         std::string trackerResponse = MagnetUtils::makeTrackerRequest(trackerUrl, binaryInfoHash);
         nlohmann::json resp_data = Bencode::decode(trackerResponse);

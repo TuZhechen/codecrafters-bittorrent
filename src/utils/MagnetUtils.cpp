@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include <sys/socket.h>
+#include "../protocol/PeerMessageType.hpp"
 #include "../utils/SHA1.hpp"
 #include <stdexcept>
 #include <fstream>
@@ -15,6 +16,42 @@
 size_t MagnetUtils::writeCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
     return size * nmemb;
+}
+
+nlohmann::json MagnetUtils::parseMagnetLink(const std::string& magnet_link) {
+    nlohmann::json result;
+    if (magnet_link.empty()) {
+        throw std::runtime_error("Magnet link cannot be empty");
+    }
+    if (magnet_link.find("magnet:") == std::string::npos) {
+        throw std::runtime_error("Invalid magnet link: wrong header");
+    }
+    if (magnet_link.find("xt=") == std::string::npos) {
+        throw std::runtime_error("Invalid magnet link: missing xt= parameter");
+    }
+    int hashStart = magnet_link.find("urn:btih:");
+    if (hashStart == std::string::npos) {
+        throw std::runtime_error("Invalid magnet link: missing urn:btih:");
+    }
+    std::string infoHash = magnet_link.substr(hashStart + 9, 40);
+    result["info_hash"] = infoHash;
+
+    std::string binaryInfoHash;
+    for (size_t i = 0; i < 40; i += 2) {
+        std::string hex_pair = infoHash.substr(i, 2);
+        char byte = static_cast<char>(std::stoi(hex_pair, nullptr, 16));
+        binaryInfoHash.push_back(byte);
+    }
+    result["binary_info_hash"] = binaryInfoHash;
+
+    int trackerStart = magnet_link.find("&tr=");
+    if (trackerStart == std::string::npos) {
+        throw std::runtime_error("A tracker url is required");
+    }
+    std::string trackerUrl = MagnetUtils::urlDecode(magnet_link.substr(trackerStart + 4));
+    std::cout << "Tracker URL: " << trackerUrl << std::endl;
+    result["tracker_url"] = trackerUrl;
+    return result;
 }
 
 std::string MagnetUtils::makeTrackerRequest(const std::string& announce_url, 
@@ -64,7 +101,7 @@ std::string MagnetUtils::urlEncode(const unsigned char* data, size_t len) {
     return ss.str();
 }
 
-int MagnetUtils::performHandshake(int sock, const std::string& info_hash, bool silent) {
+HandshakeResult MagnetUtils::performHandshake(int sock, const std::string& info_hash, bool silent) {
     // Prepare base handshake
     std::string protocol = "BitTorrent protocol";
     std::vector<uint8_t> handshake;
@@ -120,8 +157,17 @@ int MagnetUtils::performHandshake(int sock, const std::string& info_hash, bool s
     uint32_t bitfield_length = (bitfield_length_buf[0] << 24) | (bitfield_length_buf[1] << 16) | 
                              (bitfield_length_buf[2] << 8) | bitfield_length_buf[3];
 
-    std::vector<uint8_t> bitfield(bitfield_length);
-    if (recv(sock, bitfield.data(), bitfield_length, 0) != bitfield_length) {
+    // Receive the bitfield message type
+    uint8_t msg_type;
+    if (recv(sock, &msg_type, 1, 0) != 1) {  
+        throw std::runtime_error("Failed to receive bitfield message type");
+    }
+    if (msg_type != static_cast<uint8_t>(PeerMessageType::BITFIELD)) {  
+        throw std::runtime_error("Expected bitfield message, got: " + std::to_string(msg_type));
+    }
+
+    std::vector<uint8_t> bitfield(bitfield_length - 1);
+    if (recv(sock, bitfield.data(), bitfield.size(), 0) != bitfield.size()) {
         throw std::runtime_error("Failed to receive bitfield");
     }
 
@@ -200,10 +246,10 @@ int MagnetUtils::performHandshake(int sock, const std::string& info_hash, bool s
             if (!silent) {
                 std::cout << "Peer Metadata Extension ID: " << extension_id << std::endl;
             }
-            return extension_id;
+            return HandshakeResult{extension_id, bitfield};
         }
     }
-    return -1;
+    return HandshakeResult{-1, bitfield};
 }
 
 void MagnetUtils::requestMetadata(int sock, int extension_id) {
@@ -246,7 +292,7 @@ void MagnetUtils::requestMetadata(int sock, int extension_id) {
 
 }
 
-void MagnetUtils::receiveMetadata(int sock, const std::string& info_hash) {
+nlohmann::json MagnetUtils::receiveMetadata(int sock, const std::string& info_hash) {
     // Receive message length (4 bytes)
     uint8_t length_buf[4];
     if (recv(sock, length_buf, 4, 0) != 4) {
@@ -339,6 +385,7 @@ void MagnetUtils::receiveMetadata(int sock, const std::string& info_hash) {
         std::copy(pieces.begin() + i, pieces.begin() + i + 20, piece_hash.begin());
         std::cout << SHA1::toHex(piece_hash) << std::endl;
     }
+    return metadata;
 }
 
 std::string MagnetUtils::urlDecode(const std::string& encoded) {

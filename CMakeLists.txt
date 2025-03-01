@@ -32,6 +32,7 @@ set(SOURCE_FILES
     src/commands/MagnetParseCommand.cpp
     src/commands/MagnetHandshakeCommand.cpp
     src/commands/MagnetInfoCommand.cpp
+    src/commands/MagnetDownloadPieceCommand.cpp
     src/manager/CommandManager.cpp
     src/manager/PeerManager.cpp
     src/manager/PieceManager.cpp
@@ -56,6 +57,7 @@ set(HEADER_FILES
     src/commands/MagnetParseCommand.hpp
     src/commands/MagnetHandshakeCommand.hpp
     src/commands/MagnetInfoCommand.hpp
+    src/commands/MagnetDownloadPieceCommand.hpp
     src/manager/CommandManager.hpp
     src/manager/PeerManager.hpp
     src/manager/PieceManager.hpp
