@@ -12,4 +12,5 @@ public:
     static size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp);
     static int performHandshake(int sock, const std::string& info_hash, bool silent = false);
     static void requestMetadata(int sock, int extension_id);
+    static void receiveMetadata(int sock, const std::string& info_hash);
 }; 

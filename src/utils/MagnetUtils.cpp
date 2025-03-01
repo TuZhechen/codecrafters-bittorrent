@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include <sys/socket.h>
+#include "../utils/SHA1.hpp"
 #include <stdexcept>
 #include <fstream>
 #include <iostream>
@@ -243,6 +244,101 @@ void MagnetUtils::requestMetadata(int sock, int extension_id) {
         throw std::runtime_error("Failed to send metadata request");
     }
 
+}
+
+void MagnetUtils::receiveMetadata(int sock, const std::string& info_hash) {
+    // Receive message length (4 bytes)
+    uint8_t length_buf[4];
+    if (recv(sock, length_buf, 4, 0) != 4) {
+        throw std::runtime_error("Failed to receive data message length");
+    }
+
+    uint32_t received_message_length = (length_buf[0] << 24) | (length_buf[1] << 16) | 
+                                 (length_buf[2] << 8) | length_buf[3];
+
+    // Receive message id (1 byte)
+    uint8_t message_id;
+    if (recv(sock, &message_id, 1, 0) != 1) {
+        throw std::runtime_error("Failed to receive message id");
+    }
+    // Validate message id
+    if (message_id != 20) {
+        throw std::runtime_error("Received message ID is expected to be 20, but got " + std::to_string(message_id));
+    }
+    // Receive extension message ID (1 byte)
+    uint8_t ext_message_id;
+    if (recv(sock, &ext_message_id, 1, 0) != 1) {
+        throw std::runtime_error("Failed to receive extension message ID");
+    }
+
+    // Receive payload (message_length - 2 bytes for the IDs)
+    std::vector<uint8_t> received_payload_bytes(received_message_length - 2);
+    if (recv(sock, received_payload_bytes.data(), received_payload_bytes.size(), 0) != received_payload_bytes.size()) {
+        throw std::runtime_error("Failed to receive data message payload");
+    }
+
+    // Seperate metadata from payload
+    size_t dict_end = 0;
+    for (size_t i = 0; i < received_payload_bytes.size(); i++) {
+        if (received_payload_bytes[i] == 'e' && received_payload_bytes[i+1] == 'e') {
+            dict_end = i + 2;
+            break;
+        }
+    }
+    if (dict_end == 0) {
+        throw std::runtime_error("Failed to find end of payload dictionary");
+    }
+
+    // Seperate and convert payload to string and decode
+    std::string received_payload_str(received_payload_bytes.begin(), received_payload_bytes.begin() + dict_end);
+    nlohmann::json received_payload = Bencode::decode(received_payload_str);
+    // Validate the payload
+    if (!received_payload.contains("msg_type") || 
+        !received_payload.contains("piece") ||
+        !received_payload.contains("total_size")) {
+        throw std::runtime_error("Received payload does not contain msg_type, piece or total_size");
+    }
+    // Validate the message type
+    if (received_payload["msg_type"].get<int>() != 1) {
+        throw std::runtime_error("Received message type is expected to be 1, but got " + std::to_string(received_payload["msg_type"].get<int>()));
+    }
+
+    // Seperate and convert metadata to string, validate and decode
+    std::string metadata_str(received_payload_bytes.begin() + dict_end, received_payload_bytes.end());
+    auto hash = SHA1::calculate(metadata_str);
+
+    // Convert calculated hash to hex
+    std::string calculated_hash_hex;
+    for (size_t i = 0; i < 20; i++) {
+        char hex[3];
+        snprintf(hex, sizeof(hex), "%02x", hash[i]);
+        calculated_hash_hex += hex;
+    }
+
+    if (calculated_hash_hex != info_hash) {
+        throw std::runtime_error("Metadata hash mismatch. Expected: " + info_hash + 
+                               ", Got: " + calculated_hash_hex);
+    }
+
+    // Decode the metadata (info dictionary)
+    nlohmann::json metadata = Bencode::decode(metadata_str);
+    if (!metadata.contains("pieces") || 
+        !metadata.contains("piece length") || 
+        !metadata.contains("length")) {
+        throw std::runtime_error("Received metadata does not contain pieces, piece length, or length");
+    }
+
+    std::cout << "Length: " << metadata["length"].get<int>() << std::endl;
+    std::cout << "Info Hash: " << info_hash << std::endl;
+    std::cout << "Piece Length: " << metadata["piece length"].get<int>() << std::endl;
+    std::string pieces = metadata["pieces"].get<std::string>();
+    
+    std::cout << "Piece Hashes:" << std::endl;
+    for (size_t i = 0; i < pieces.length(); i += 20) {
+        std::array<unsigned char, 20> piece_hash;
+        std::copy(pieces.begin() + i, pieces.begin() + i + 20, piece_hash.begin());
+        std::cout << SHA1::toHex(piece_hash) << std::endl;
+    }
 }
 
 std::string MagnetUtils::urlDecode(const std::string& encoded) {

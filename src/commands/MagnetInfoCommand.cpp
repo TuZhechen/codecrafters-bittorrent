@@ -42,7 +42,8 @@ void MagnetInfoCommand::execute(const CommandOptions& options) {
             throw std::runtime_error("A tracker url is required");
         }
         std::string trackerUrl = MagnetUtils::urlDecode(magnet_link.substr(trackerStart + 4));
-        
+        std::cout << "Tracker URL: " << trackerUrl << std::endl;
+
         std::string trackerResponse = MagnetUtils::makeTrackerRequest(trackerUrl, binaryInfoHash);
         nlohmann::json resp_data = Bencode::decode(trackerResponse);
         std::string peers_data = resp_data["peers"].get<std::string>();
@@ -71,6 +72,9 @@ void MagnetInfoCommand::execute(const CommandOptions& options) {
 
         // Request metadata
         MagnetUtils::requestMetadata(sock, extension_id);
+
+        // Receive metadata
+        MagnetUtils::receiveMetadata(sock, infoHash);
 
     } catch (const std::exception& e) {
         if (sock >= 0) {
