@@ -1,47 +1,33 @@
-#include "DownloadCommand.hpp"
+#include "MagnetDownloadCommand.hpp"
 #include <iostream>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-void DownloadCommand::execute(const CommandOptions& options) {
+void MagnetDownloadCommand::execute(const CommandOptions& options) {
     try {
         if (options.args.size() != 1) {
-            throw std::runtime_error("Expected: <torrent_file>");
+            throw std::runtime_error("Expected: <magnet_link>");
         }
         if (!options.options.contains("-o")) {
             throw std::runtime_error("Expected: -o <output_file>");
         }
-
-        std::string torrent_file = options.args[0];
+        
+        std::string magnet_link = options.args[0];
         std::string output_file = options.options.at("-o");
         
-        // Parse torrent file
-        std::string torrent_content = TorrentUtils::readTorrentFile(torrent_file);
-        BencodeDecoder decoder;
-        nlohmann::json torrent_data = decoder.decode(torrent_content);
-        
-        // Get piece info
-        const auto& info = torrent_data["info"];
-        int piece_length = info["piece length"];
-        int64_t file_length = info["length"].get<int64_t>();
-        std::string pieces_hash = info["pieces"].get<std::string>();
-        int total_pieces = (file_length + piece_length - 1) / piece_length;
-
-        // Calculate info hash
-        BencodeEncoder encoder;
-        std::string encoded_info = encoder.encode(info);
-        auto hash = SHA1::calculate(encoded_info);
-        info_hash = std::string(reinterpret_cast<char*>(hash.data()), 20);
-
-        // Initialize piece manager
-        piece_manager = std::make_unique<PieceManager>(
-            total_pieces, piece_length, file_length, info_hash, pieces_hash
-        );
+        // Parse magnet link
+        nlohmann::json magnet_data = MagnetUtils::parseMagnetLink(magnet_link);
+        infoHash = magnet_data["info_hash"];
+        binaryInfoHash = magnet_data["binary_info_hash"];
+        std::string trackerUrl = magnet_data["tracker_url"];
 
         // Connect to peers and start download
-        connectToPeers(torrent_data["announce"].get<std::string>());
+        connectToPeers(trackerUrl);
         downloadAllPieces();
 
         // Verify and save file
@@ -58,23 +44,64 @@ void DownloadCommand::execute(const CommandOptions& options) {
     }
 }
 
-void DownloadCommand::connectToPeers(const std::string& announce_url) {
+void MagnetDownloadCommand::connectToPeers(const std::string& trackerUrl) {
     // Get peers from tracker
-    std::string tracker_response = TorrentUtils::makeTrackerRequest(
-        announce_url, info_hash, piece_manager->getFileLength()
+    std::string tracker_response = MagnetUtils::makeTrackerRequest(
+        trackerUrl, 
+        binaryInfoHash
     );
 
-    BencodeDecoder decoder;
-    nlohmann::json resp_data = decoder.decode(tracker_response);
+    nlohmann::json resp_data = Bencode::decode(tracker_response);
     std::string peers_data = resp_data["peers"].get<std::string>();
 
-    // Connect to peers
-    for (size_t i = 0; i < peers_data.length(); i += 6) {
-        auto [ip_str, port] = PeerUtils::parsePeerAddress(peers_data, i);
+    int sock = -1;
 
-        auto peer = std::make_unique<PeerManager>(ip_str, port, info_hash);
-        if (peer->connect()) {
-            peers.push_back(std::move(peer));
+    // Handshake with each peer, request metadata and maintain peers
+    for (size_t i = 0; i < peers_data.length(); i += 6) {
+        auto [ip, port] = PeerUtils::parsePeerAddress(peers_data, i);
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) {
+            throw std::runtime_error("Failed to create socket");
+        }
+
+        // Connect to peer i
+        struct sockaddr_in peer_addr_in;
+        peer_addr_in.sin_family = AF_INET;
+        peer_addr_in.sin_port = htons(port);
+        if (inet_pton(AF_INET, ip.c_str(), &peer_addr_in.sin_addr) <= 0) {
+            throw std::runtime_error("Invalid IP address");
+        }
+
+        if (connect(sock, (struct sockaddr*)&peer_addr_in, sizeof(peer_addr_in)) < 0) {
+            throw std::runtime_error("Failed to connect to peer");
+        }
+
+        // Perform handshake
+        auto [extension_id, bitfield] = MagnetUtils::performHandshake(sock, binaryInfoHash, true);
+
+        // Request metadata
+        MagnetUtils::requestMetadata(sock, extension_id);
+
+        // Receive metadata
+        nlohmann::json metadata = MagnetUtils::receiveMetadata(sock, infoHash);
+        if(!metadata.is_null()) {
+            if (piece_manager == nullptr) { 
+                int file_length = metadata["length"].get<int>();
+                int piece_length = metadata["piece length"].get<int>();
+                int total_pieces = (file_length + piece_length - 1) / piece_length;
+                std::string pieces_hash = metadata["pieces"].get<std::string>();
+
+                // Initialize piece manager
+                piece_manager = std::make_unique<PieceManager>(
+                    total_pieces, piece_length, file_length, infoHash, pieces_hash
+                );
+            }
+
+            // Initialize peer
+            auto peer = std::make_unique<PeerManager>(ip, port, infoHash);
+            if (peer -> magnetConnect(sock, bitfield)) {
+                peers.push_back(std::move(peer));
+            }
         }
     }
 
@@ -186,7 +213,7 @@ private:
     SaveQueue save_queue;
 };
 
-void DownloadCommand::downloadAllPieces() {
+void MagnetDownloadCommand::downloadAllPieces() {
     std::vector<std::unique_ptr<DownloadWorker>> workers;
     
     // Create and start workers

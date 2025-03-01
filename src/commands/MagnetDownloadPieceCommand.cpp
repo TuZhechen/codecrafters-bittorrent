@@ -30,7 +30,7 @@ void MagnetDownloadPieceCommand::execute(const CommandOptions& options) {
         std::string binaryInfoHash = magnet_data["binary_info_hash"];
         std::string trackerUrl = magnet_data["tracker_url"];
 
-        // Connect to peers
+        // Get peers from tracker
         std::string tracker_response = MagnetUtils::makeTrackerRequest(
             trackerUrl, 
             binaryInfoHash
