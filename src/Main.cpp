@@ -6,6 +6,7 @@
 #include "commands/DownloadCommand.hpp"
 #include "commands/MagnetParseCommand.hpp"
 #include "commands/MagnetHandshakeCommand.hpp"
+#include "commands/MagnetInfoCommand.hpp"
 #include "manager/CommandManager.hpp"
 #include <iostream>
 
@@ -45,7 +46,7 @@ int main(int argc, char* argv[]) {
     manager.registerCommand("download", std::make_unique<DownloadCommand>());
     manager.registerCommand("magnet_parse", std::make_unique<MagnetParseCommand>());
     manager.registerCommand("magnet_handshake", std::make_unique<MagnetHandshakeCommand>());
-
+    manager.registerCommand("magnet_info", std::make_unique<MagnetInfoCommand>());
     manager.executeCommand(command, options);
 
     return 0;

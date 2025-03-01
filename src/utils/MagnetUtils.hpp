@@ -10,5 +10,6 @@ public:
                                            const std::string& info_hash,
                                            int64_t length = 999);
     static size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp);
-    static void performHandshake(int sock, const std::string& info_hash);
+    static int performHandshake(int sock, const std::string& info_hash, bool silent = false);
+    static void requestMetadata(int sock, int extension_id);
 }; 

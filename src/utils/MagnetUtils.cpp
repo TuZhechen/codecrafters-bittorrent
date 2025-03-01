@@ -63,7 +63,7 @@ std::string MagnetUtils::urlEncode(const unsigned char* data, size_t len) {
     return ss.str();
 }
 
-void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
+int MagnetUtils::performHandshake(int sock, const std::string& info_hash, bool silent) {
     // Prepare base handshake
     std::string protocol = "BitTorrent protocol";
     std::vector<uint8_t> handshake;
@@ -104,7 +104,9 @@ void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
         ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
     }
     
-    std::cout << "Peer ID: " << ss.str() << std::endl;
+    if (!silent) {
+        std::cout << "Peer ID: " << ss.str() << std::endl;
+    }
 
     // TBD: send the bitfield message
 
@@ -193,9 +195,54 @@ void MagnetUtils::performHandshake(int sock, const std::string& info_hash) {
         std::string received_payload_str(received_payload_bytes.begin(), received_payload_bytes.end());
         nlohmann::json received_payload = Bencode::decode(received_payload_str);
         if (received_payload.contains("m") && received_payload["m"].contains("ut_metadata")) {
-            std::cout << "Peer Metadata Extension ID: " << received_payload["m"]["ut_metadata"] << std::endl;
+            int extension_id = received_payload["m"]["ut_metadata"].get<int>();
+            if (!silent) {
+                std::cout << "Peer Metadata Extension ID: " << extension_id << std::endl;
+            }
+            return extension_id;
         }
     }
+    return -1;
+}
+
+void MagnetUtils::requestMetadata(int sock, int extension_id) {
+    // Create the metadata request payload
+    nlohmann::json payload;
+    payload["msg_type"] = 0;
+    payload["piece"] = 0;
+
+    // Bencode the payload
+    std::string payload_str = Bencode::encode(payload);
+        
+    // Calculate the message length (payload size + 2 bytes for IDs)
+    uint32_t message_length = payload_str.size() + 2;
+        
+    // Construct the complete extension handshake message
+    std::vector<uint8_t> metadata_request;
+    metadata_request.reserve(6 + payload_str.size());
+        
+    // Add length prefix (4 bytes, big-endian)
+    metadata_request.push_back((message_length >> 24) & 0xFF);
+    metadata_request.push_back((message_length >> 16) & 0xFF);
+    metadata_request.push_back((message_length >> 8) & 0xFF);
+    metadata_request.push_back(message_length & 0xFF);
+        
+    // Add message ID (1 byte)
+    metadata_request.push_back(20);  // 20 for extension protocol
+
+    // Add extension ID (1 byte)
+    metadata_request.push_back(static_cast<uint8_t>(extension_id));
+        
+    // Add bencoded payload
+    metadata_request.insert(metadata_request.end(), 
+                                  payload_str.begin(), payload_str.end());
+        
+    // Send the metadata request
+    if (send(sock, metadata_request.data(), metadata_request.size(), 0) != 
+            static_cast<ssize_t>(metadata_request.size())) {
+        throw std::runtime_error("Failed to send metadata request");
+    }
+
 }
 
 std::string MagnetUtils::urlDecode(const std::string& encoded) {
